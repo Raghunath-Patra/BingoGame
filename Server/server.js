@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: "https://bingogame-backend.onrender.com",
+    origin: "https://bingogame-frontend.onrender.com",
   },
 });
 
