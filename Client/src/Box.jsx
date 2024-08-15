@@ -54,7 +54,7 @@ const Box = ({numArray,setNumArray,playingAs,setFinishState,finishState,setMarkB
                         newState[i][j] = myCurrent;
                         return newState;
                     });
-                    setClas('cell active opponent');
+                    setClas('cell active');
                 }  
             }
     }, [currentPlayer]);

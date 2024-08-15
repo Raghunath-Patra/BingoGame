@@ -22,9 +22,6 @@
     font-size: larger;
     background-color: rgb(230, 140, 22);
 }
-.opponent{
-    background-color: rgb(22, 230, 213);
-}
 .active:hover{
     cursor:not-allowed;
 }
