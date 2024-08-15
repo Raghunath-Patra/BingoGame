@@ -150,7 +150,7 @@ async function findPlayer(){
   }
   const userName = result.value;
   setPlayerName(userName);
-  const newSocket = io("http://localhost:3000",{
+  const newSocket = io("https://bingogame-backend.onrender.com",{
     autoConnect: true,
   });
 
