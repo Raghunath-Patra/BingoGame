@@ -91,6 +91,7 @@ io.on("connection", (socket) => {
       console.log("Room not found for user:", currentUser.roomId);
     }
   });
+  /*
   socket.on("CheckWinner",(data) =>{
     const currentUser = allUsers[socket.id];
     const room = allRooms[currentUser.roomId];
@@ -128,7 +129,58 @@ io.on("connection", (socket) => {
           
       }
     }
-  })
+  })*/
+  socket.on("CheckWinner", (data) => {
+    const currentUser = allUsers[socket.id];
+    const room = allRooms[currentUser.roomId];
+  
+    if (room) {
+      // Update scores based on the player making the request
+      if (room.player1.socket.id === socket.id) {
+        room.score1 = data.count;
+      } else if (room.player2.socket.id === socket.id) {
+        room.score2 = data.count;
+      }
+  
+      // Increment the countReady
+      room.countReady += 1;
+  
+      if (room.countReady === 2) {
+        // Determine the winner
+        const player1Score = room.score1;
+        const player2Score = room.score2;
+        
+        //let winner;
+        if (player1Score >= 5 && player1Score > player2Score) {
+          //winner = room.player1.playerName;
+          room.player1.socket?.emit("WinnerDeclared",{
+            winner: room.player1.playerName,
+          });
+          room.player2.socket?.emit("WinnerDeclared",{
+            winner: room.player1.playerName,
+          });
+        } else if (player2Score >= 5 && player2Score > player1Score) {
+          winner = room.player2.playerName;
+          room.player1.socket?.emit("WinnerDeclared",{
+            winner: room.player2.playerName,
+          });
+          room.player2.socket?.emit("WinnerDeclared",{
+            winner: room.player2.playerName,
+          });
+        } else if (player1Score >= 5 && player1Score === player2Score) {
+          //winner = 'none';
+          room.player1.socket?.emit("WinnerDeclared",{
+            winner: 'none',
+          });
+          room.player2.socket?.emit("WinnerDeclared",{
+            winner: 'none',
+          });
+        }
+        // Reset the room state for next round
+        room.countReady = 0; // Reset countReady for next round
+      }
+    }
+  });
   
   socket.on("disconnect", () => {
     const currentUser = allUsers[socket.id];
