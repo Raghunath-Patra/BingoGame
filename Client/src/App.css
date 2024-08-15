@@ -1,0 +1,74 @@
+.container {
+  display: flex;
+  margin: 10px 10px;
+  width: 100%;
+  height: 100vh;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.turn{
+  width: 520px;
+  display: flex;
+  justify-content: space-around;
+  margin: 10px 5px;
+}
+.my-turn{
+  background-color: rgb(247, 184, 101);
+}
+.opponent-turn{
+  background-color: rgb(22, 230, 213);
+}
+.player{
+  width:30%;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ececec;
+  border-radius: 13px;
+  box-shadow: -2px -2px 10px rgba(255,255,255,0.521),
+  2px 2px 10px rgba(50, 49, 49, 0.12),
+  inset -2px -2px 10px rgba(255, 255, 255, 0.521),
+  5px 5px 15px rgba(50, 49, 49, 0.12);
+}
+.game-board {
+  display: grid;
+  aspect-ratio: 1/1;
+  grid-template-columns: repeat(5,60px);
+  grid-template-rows: repeat(5,60px);
+  gap: 8px;
+  justify-content: center;
+  align-content: center;
+  margin-bottom:10px;
+}
+.opponent-won{
+  opacity: 0.5;
+}
+.find-player{
+  padding: 10px 20px;
+  background-color: rgb(246, 246, 149);
+  font-weight: 600;
+  font-size: 30px;
+  border-radius: 12px;
+  border-style: none;
+  cursor: pointer;
+}
+@media screen and(max-width:270px) {
+  .container{
+    margin:1px 1px;
+  }
+  .turn{
+    width: 260px;
+    margin: 5px 1px;
+  }
+  .player{
+    height:20px;
+    font-size: small;
+  }
+  .game-board{
+    grid-template-columns: repeat(5,40px);
+    grid-template-rows: repeat(5,40px);
+    gap: 5px;
+  }
+}
