@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
-import Box from './box.jsx'
+import Box from './Box.jsx'
 import { io } from 'socket.io-client' 
 import Swal from 'sweetalert2'
 
