@@ -41,10 +41,10 @@ io.on("connection", (socket) => {
         player2: opponentPlayer,
         ready: 0,
         countReady: 0,
+        readyAgain: 0,
         score1: 0,
         score2: 0,
       };
-
       currentUser.roomId = roomId;
       currentUser.playing = true;
       opponentPlayer.roomId = roomId;
@@ -72,9 +72,10 @@ io.on("connection", (socket) => {
       room.ready += 1;
 
       if (room.ready === 2) {
+        room.ready = 0;
         room.player1.socket.emit("opponent-ready");
         room.player2.socket.emit("opponent-ready");
-        room.ready = 0;
+       
       }
     }
   });
@@ -85,51 +86,13 @@ io.on("connection", (socket) => {
     const room = allRooms[currentUser.roomId];
 
     if (room) {
+      //room.countReady
       const opponent = room.player1.socket.id === socket.id ? room.player2 : room.player1;
       opponent.socket.emit("playerMoveFromServer", data);
     }else {
       console.log("Room not found for user:", currentUser.roomId);
     }
   });
-  /*
-  socket.on("CheckWinner",(data) =>{
-    const currentUser = allUsers[socket.id];
-    const room = allRooms[currentUser.roomId];
-
-    if (room) {
-      room.countReady += 1;
-      room.player1.socket.id === socket.id ? room.score1 = data.count : room.score2 = data.count;
-      if (room.countReady === 2) {
-        room.countReady = 1;
-        const opponentCount = room.player1.socket.id === socket.id ? room.score2 : room.score1;
-        const count = room.player1.socket.id === socket.id ? room.score1 : room.score2;
-        console.log(count,opponentCount);
-        if(count >= 5 && opponentCount < count){
-          room.player1.socket?.emit("WinnerDeclared",{
-            winner: room.player1.playerName,
-          });
-          room.player2.socket?.emit("WinnerDeclared",{
-            winner: room.player1.playerName,
-          });
-        }else if(opponentCount >= 5 && count < opponentCount){
-          room.player1.socket?.emit("WinnerDeclared",{
-            winner: room.player2.playerName,
-          });
-          room.player2.socket?.emit("WinnerDeclared",{
-            winner: room.player2.playerName,
-          });
-        }else if(count >= 5 && count === opponentCount){
-          room.player1.socket?.emit("WinnerDeclared",{
-            winner: 'none',
-          });
-          room.player2.socket?.emit("WinnerDeclared",{
-            winner: 'none',
-          });
-        }
-          
-      }
-    }
-  })*/
   socket.on("CheckWinner", (data) => {
     const currentUser = allUsers[socket.id];
     const room = allRooms[currentUser.roomId];
@@ -149,35 +112,65 @@ io.on("connection", (socket) => {
         // Determine the winner
         const player1Score = room.score1;
         const player2Score = room.score2;
-        
+        //console.log(player1Score,player2Score);
         //let winner;
         if (player1Score >= 5 && player1Score > player2Score) {
           //winner = room.player1.playerName;
           room.player1.socket?.emit("WinnerDeclared",{
             winner: room.player1.playerName,
+            opponentScore: player2Score,
           });
           room.player2.socket?.emit("WinnerDeclared",{
             winner: room.player1.playerName,
+            opponentScore: player1Score,
           });
         } else if (player2Score >= 5 && player2Score > player1Score) {
           winner = room.player2.playerName;
           room.player1.socket?.emit("WinnerDeclared",{
             winner: room.player2.playerName,
+            opponentScore: player2Score,
           });
           room.player2.socket?.emit("WinnerDeclared",{
             winner: room.player2.playerName,
+            opponentScore: player1Score,
           });
         } else if (player1Score >= 5 && player1Score === player2Score) {
           //winner = 'none';
           room.player1.socket?.emit("WinnerDeclared",{
             winner: 'none',
+            opponentScore: player2Score,
           });
           room.player2.socket?.emit("WinnerDeclared",{
             winner: 'none',
+            opponentScore: player1Score,
           });
         }
+  
+        
+  
         // Reset the room state for next round
-        room.countReady = 0; // Reset countReady for next round
+        room.countReady = 1; // Reset countReady for next round
+      }
+    }
+  });
+  
+  socket.on("PlayAgain",() =>{
+    const currentUser = allUsers[socket.id];
+    const room = allRooms[currentUser.roomId];
+
+    if (room) {
+      room.readyAgain += 1;
+      if(room.readyAgain === 1){
+        const opponent = room.player1.socket.id === socket.id ? room.player2 : room.player1;
+        opponent.socket.emit("oppoWantToPlayAgain");
+      }
+      else if (room.readyAgain === 2) {
+        room.readyAgain = 0;
+        room.score2 = 0;
+        room.score1 = 0;
+        room.player1.socket.emit("opponent-ready-again");
+        room.player2.socket.emit("opponent-ready-again");
+        
       }
     }
   });
