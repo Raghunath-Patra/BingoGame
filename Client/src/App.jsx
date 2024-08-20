@@ -5,7 +5,11 @@ import { io } from 'socket.io-client'
 import Swal from 'sweetalert2'
 
 const renderFrom = [
-  [1,2,3,4,5],[6,7,8,9,10],[11,12,13,14,15],[16,17,18,19,20],[21,22,23,24,25]
+  [null,null,null,null,null],
+  [null,null,null,null,null],
+  [null,null,null,null,null],
+  [null,null,null,null,null],
+  [null,null,null,null,null]
 ]
 const renderMarks = [
   [null,null,null,null,null],
@@ -28,7 +32,9 @@ const App = ()=> {
   const [numArray, setNumArray] = useState(0);
   const [playingAs, setPlayingAs] = useState(null);
   const [gameWinner, setWinner] = useState(null);
-
+  const [opponentcount, setOpponentCount] = useState(0);
+  const [isplayAgain, setIsPlayAgain] = useState(false);
+  const [matchAgain, setMatchAgain] = useState(null);
   useEffect(() => {
     if(finishState === 'gameOver'){
       return;
@@ -77,12 +83,14 @@ socket?.on("opponent-ready", function(){
 }) 
 
 useEffect(() => {
-  socket?.emit("CheckWinner",{
-    count: count,
-  });
+  if(finishState === 'continue'){
+    socket?.emit("CheckWinner",{
+      count: count,
+    });
+  }
 }, [count]);
 
-useEffect(() => {
+useEffect(() => { 
   if(finishState === 'continue' && playingAs !== currentPlayer){
     
     socket?.emit("playerMoveFromClient",{
@@ -94,7 +102,7 @@ useEffect(() => {
 socket?.on("WinnerDeclared",(data)=>{
   setFinishState('gameOver');
   setWinner(data?.winner);
-  console.log(markBox);
+  setOpponentCount(data?.opponentScore);
 });
 
 socket?.on("connect", function(){
@@ -161,6 +169,26 @@ async function findPlayer(){
   setSocket(newSocket);
 }
 
+socket?.on("opponent-ready-again",()=>{
+  setMarkBox(renderFrom);
+  setNumState(0);
+  setFinishState(null);
+  setNumArray(0);
+  setWinner(null);
+  setOpponentCount(0);
+  setCount(0);
+  setIsPlayAgain(true);
+  setCurrentPlayer("player1");
+  setMatchAgain("");
+});
+socket?.on("oppoWantToPlayAgain",()=>{
+    setMatchAgain("Opponent Wants to Play Again")
+});
+const playAgain = () =>{
+  setMatchAgain("Waiting for Opponent's Response..");
+  socket?.emit("PlayAgain");
+  
+}
   if(!playGame){
     return(
       <div className='container'>
@@ -179,9 +207,12 @@ async function findPlayer(){
   return (
     
     <div className="container">
+      <div>
+        {(gameWinner !== 'opponentLeft')?matchAgain : ""}
+      </div>
       <div className="turn">
         <div className={`player ${(finishState ==='continue' && playingAs===currentPlayer) ? 'my-turn':''}`} >{playerName}</div>
-
+        <b>Bingo</b>
         <div className={`player ${(finishState === 'continue' && playingAs!==currentPlayer) ? 'opponent-turn':''}`}>{opponentName}</div>
       </div>
       <div className={`game-board ${(gameWinner && gameWinner === opponentName) ? 'opponent-won' : ''}`}>
@@ -199,20 +230,27 @@ async function findPlayer(){
               setNumState = {setNumState}
               currentPlayer = {currentPlayer}
               setCurrentPlayer = {setCurrentPlayer}
+              isplayAgain = {isplayAgain}
+              setIsPlayingAgain={setIsPlayAgain}
               id={rowIndex*5 + colIndex}
-              key={e}/>;
+              key={rowIndex*5 + colIndex}/>;
             })
           )}
       </div>
       <div className="info">
-        {(gameWinner && gameWinner === playerName)? 'You WON the Game':''}
-        {(gameWinner && gameWinner === opponentName)? 'You LOST the Game':''}
+        {(gameWinner && gameWinner === playerName)? 'You WON the Game 🤩':''}
+        {(gameWinner && gameWinner === opponentName)? 'You LOST the Game 😟':''}
         {(gameWinner && gameWinner === 'none')? "It's a Draw":""}
+        {(gameWinner && gameWinner !== 'opponentLeft')? <br/>:null}
+        {(gameWinner && gameWinner !== 'opponentLeft')? "Your Score:"+count+" Opponent's Score:"+opponentcount:""}
         {(gameWinner && gameWinner === 'opponentLeft')? "Opponent Left the Match":""}
         {(!finishState)? 'Mark Numbers 1-25':''}
         {(finishState && finishState === 'start')? 'Let opponent finish Numbering':''}
         {(finishState && finishState === 'continue'&& !gameWinner && playingAs === currentPlayer)? "Your Turn":""}
         {(finishState && finishState === 'continue'&& !gameWinner && playingAs !== currentPlayer)? "Opponent's Turn":""}
+      </div>
+      <div className={`playAgain ${(gameWinner && gameWinner!=='opponentLeft') ? 'visible': ''}`}>
+          <button onClick={playAgain}>Play Again</button>
       </div>
     </div>
   )
