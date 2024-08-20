@@ -2,7 +2,7 @@
   display: flex;
   margin: 10px 10px;
   width: 100%;
-  height: 100vh;
+  height: 95vh;
   flex-direction: column;
   justify-content: center;
   align-items: center;
@@ -54,6 +54,9 @@
   border-style: none;
   cursor: pointer;
 }
+.info{
+  text-align: center;
+}
 @media screen and(max-width:270px) {
   .container{
     margin:1px 1px;
@@ -71,4 +74,20 @@
     grid-template-rows: repeat(5,40px);
     gap: 5px;
   }
+}
+.playAgain button{
+  padding: 5px 15px;
+  background-color: rgb(248, 248, 180);
+  border: 1px solid;
+  font-weight: 500;
+  border-radius: 7px;
+  transition: 0.1s ease-in;
+  display:none;
+}
+.playAgain button:hover{
+  background-color: rgb(246, 246, 149);
+  font-weight: bolder;
+}
+.visible button{
+  display:block !important;
 }
