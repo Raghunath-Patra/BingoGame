@@ -2,7 +2,7 @@ import React, { useState, useEffect} from 'react'
 import './Box.css'
 
 
-const Box = ({numArray,setNumArray,playingAs,setFinishState,finishState,setMarkBox,id,numState,setNumState,currentPlayer,setCurrentPlayer}) => {
+const Box = ({numArray,setNumArray,playingAs,setFinishState,finishState,setMarkBox,id,numState,setNumState,currentPlayer,setCurrentPlayer,isplayAgain,setIsPlayingAgain}) => {
     const [num, setNum] = useState(null);
     const [clas, setClas] = useState('cell');
 
@@ -44,19 +44,27 @@ const Box = ({numArray,setNumArray,playingAs,setFinishState,finishState,setMarkB
     }, [finishState]);
 
     useEffect(() => {
-            const myCurrent = playingAs === 'player1'?'player2':'player1';
-            if(currentPlayer === playingAs){
-                if(num===numArray){
-                    setMarkBox(prevState => {
-                        const newState = prevState.map(row => row.slice());
-                        const i = Math.floor(id / 5);
-                        const j = id % 5;
-                        newState[i][j] = myCurrent;
-                        return newState;
-                    });
-                    setClas('cell active');
-                }  
-            }
+        if(isplayAgain){
+            setClas('cell');
+            setNum(null);
+            setIsPlayingAgain(false);
+        }
+    }, [isplayAgain]);
+
+    useEffect(() => {
+        const myCurrent = playingAs === 'player1'?'player2':'player1';
+        if(currentPlayer === playingAs){
+            if(num===numArray){
+                setMarkBox(prevState => {
+                    const newState = prevState.map(row => row.slice());
+                    const i = Math.floor(id / 5);
+                    const j = id % 5;
+                    newState[i][j] = myCurrent;
+                    return newState;
+                });
+                setClas('cell active');
+            }  
+        }
     }, [currentPlayer]);
 
   return (
