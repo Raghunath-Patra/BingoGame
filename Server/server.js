@@ -5,6 +5,7 @@ const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
     origin: "https://bingogame-frontend.onrender.com",
+    //origin: "http://localhost:5173",
   },
 });
 

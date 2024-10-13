@@ -11,19 +11,13 @@ const renderFrom = [
   [null,null,null,null,null],
   [null,null,null,null,null]
 ]
-const renderMarks = [
-  [null,null,null,null,null],
-  [null,null,null,null,null],
-  [null,null,null,null,null],
-  [null,null,null,null,null],
-  [null,null,null,null,null]
-]
 
 const App = ()=> {
   const [numState, setNumState] = useState(0);
   const [currentPlayer, setCurrentPlayer] = useState("player1");
+  const [firstPlayer, setFirstPlayer] = useState('player1');
   const [finishState, setFinishState] = useState(null);
-  const [markBox, setMarkBox] = useState(renderMarks);
+  const [markBox, setMarkBox] = useState(renderFrom);
   const [count, setCount] = useState(0);
   const [playGame,setPlayGame] = useState(false);
   const [socket, setSocket] = useState(null);
@@ -159,6 +153,7 @@ async function findPlayer(){
   const userName = result.value;
   setPlayerName(userName);
   const newSocket = io("https://bingogame-backend.onrender.com",{
+    //const newSocket = io("http://localhost:3000",{
     autoConnect: true,
   });
 
@@ -178,7 +173,8 @@ socket?.on("opponent-ready-again",()=>{
   setOpponentCount(0);
   setCount(0);
   setIsPlayAgain(true);
-  setCurrentPlayer("player1");
+  setCurrentPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
+  setFirstPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
   setMatchAgain("");
 });
 socket?.on("oppoWantToPlayAgain",()=>{
