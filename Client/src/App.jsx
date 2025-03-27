@@ -173,11 +173,16 @@ function findNewPlayer(){
   setWinner(null);
   setOpponentCount(0);
   setCount(0);
-  socket?.emit("request_to_play", {
+  const newSocket = io("https://bingogame-backend.onrender.com",{
+    //const newSocket = io("http://localhost:3000",{
+    autoConnect: true,
+  });
+
+  newSocket?.emit("request_to_play", {
     playerName: userName,
   });
 
-  setSocket(socket);
+  setSocket(newSocket);
 }
 
 socket?.on("opponent-ready-again",()=>{
