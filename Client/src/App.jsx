@@ -165,6 +165,21 @@ async function findPlayer(){
   setSocket(newSocket);
 }
 
+function findNewPlayer(){
+  setMarkBox(renderFrom);
+  setNumState(0);
+  setFinishState(null);
+  setNumArray(0);
+  setWinner(null);
+  setOpponentCount(0);
+  setCount(0);
+  socket?.emit("request_to_play", {
+    playerName: userName,
+  });
+
+  setSocket(socket);
+}
+
 socket?.on("opponent-ready-again",()=>{
   setMarkBox(renderFrom);
   setNumState(0);
@@ -251,6 +266,9 @@ const playAgain = () =>{
       </div>
       <div className={`playAgain ${(gameWinner && gameWinner!=='opponentLeft') ? 'visible': ''}`}>
           <button onClick={playAgain}>Play Again</button>
+      </div>
+      <div className={`playAgain ${(gameWinner && gameWinner==='opponentLeft') ? 'visible': ''}`}>
+          <button onClick={findNewPlayer}>Find Another Player</button>
       </div>
     </div>
   )
