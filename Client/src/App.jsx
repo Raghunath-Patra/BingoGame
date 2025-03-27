@@ -215,7 +215,7 @@ const playAgain = () =>{
         <b>Bingo</b>
         <div className={`player ${(finishState === 'continue' && playingAs!==currentPlayer) ? 'opponent-turn':''}`}>{opponentName}</div>
       </div>
-      <div className={`game-board ${(gameWinner && gameWinner === opponentName) ? 'opponent-won' : ''}`}>
+      <div className={`game-board ${(gameWinner && (gameWinner === opponentName || gameWinner === 'opponentLeft')) ? 'opponent-won' : ''}`}>
         {
           renderFrom.map( (arr,rowIndex) =>
             arr.map((e,colIndex) =>{
