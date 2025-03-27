@@ -28,6 +28,7 @@ const App = ()=> {
   const [gameWinner, setWinner] = useState(null);
   const [opponentcount, setOpponentCount] = useState(0);
   const [isplayAgain, setIsPlayAgain] = useState(false);
+  const [wantToPlayAgain, setWantToPlayAgain] = useState(false);
   const [matchAgain, setMatchAgain] = useState(null);
   useEffect(() => {
     if(finishState === 'gameOver'){
@@ -173,6 +174,7 @@ socket?.on("opponent-ready-again",()=>{
   setOpponentCount(0);
   setCount(0);
   setIsPlayAgain(true);
+  setWantToPlayAgain(false);
   setCurrentPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
   setFirstPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
   setMatchAgain("");
@@ -181,9 +183,11 @@ socket?.on("oppoWantToPlayAgain",()=>{
     setMatchAgain("Opponent Wants to Play Again")
 });
 const playAgain = () =>{
-  setMatchAgain("Waiting for Opponent's Response..");
-  socket?.emit("PlayAgain");
-  
+  if(!wantToPlayAgain){
+    setWantToPlayAgain(true);
+    setMatchAgain("Waiting for Opponent's Response..");
+    socket?.emit("PlayAgain");
+  }
 }
   if(!playGame){
     return(
