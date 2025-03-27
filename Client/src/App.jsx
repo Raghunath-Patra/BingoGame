@@ -165,7 +165,7 @@ async function findPlayer(){
   setSocket(newSocket);
 }
 
-function findNewPlayer(){
+const findNewPlayer = ()=>{
   //socket?.disconnect();  // Disconnect the current socket connection
   socket?.emit("disconnect",{});
   setSocket(null);  // Set the socket to null
