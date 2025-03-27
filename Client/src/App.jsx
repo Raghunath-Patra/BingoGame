@@ -166,7 +166,8 @@ async function findPlayer(){
 }
 
 function findNewPlayer(){
-  socket?.disconnect();  // Disconnect the current socket connection
+  //socket?.disconnect();  // Disconnect the current socket connection
+  socket?.emit("disconnect",{});
   setSocket(null);  // Set the socket to null
   setOpponentName(null);  // Set the opponent name to null
   setPlayingAs(null);  // Set the playingAs to null
