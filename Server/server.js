@@ -97,63 +97,63 @@ io.on("connection", (socket) => {
   socket.on("CheckWinner", (data) => {
     const currentUser = allUsers[socket.id];
     const room = allRooms[currentUser.roomId];
-  
+
     if (room) {
-      // Update scores based on the player making the request
-      if (room.player1.socket.id === socket.id) {
-        room.score1 = data.count;
-      } else if (room.player2.socket.id === socket.id) {
-        room.score2 = data.count;
-      }
-  
-      // Increment the countReady
-      room.countReady += 1;
-  
-      if (room.countReady === 2) {
-        // Determine the winner
-        const player1Score = room.score1;
-        const player2Score = room.score2;
-        //console.log(player1Score,player2Score);
-        //let winner;
-        if (player1Score >= 5 && player1Score > player2Score) {
-          //winner = room.player1.playerName;
-          room.player1.socket?.emit("WinnerDeclared",{
-            winner: room.player1.playerName,
-            opponentScore: player2Score,
-          });
-          room.player2.socket?.emit("WinnerDeclared",{
-            winner: room.player1.playerName,
-            opponentScore: player1Score,
-          });
-        } else if (player2Score >= 5 && player2Score > player1Score) {
-          winner = room.player2.playerName;
-          room.player1.socket?.emit("WinnerDeclared",{
-            winner: room.player2.playerName,
-            opponentScore: player2Score,
-          });
-          room.player2.socket?.emit("WinnerDeclared",{
-            winner: room.player2.playerName,
-            opponentScore: player1Score,
-          });
-        } else if (player1Score >= 5 && player1Score === player2Score) {
-          //winner = 'none';
-          room.player1.socket?.emit("WinnerDeclared",{
-            winner: 'none',
-            opponentScore: player2Score,
-          });
-          room.player2.socket?.emit("WinnerDeclared",{
-            winner: 'none',
-            opponentScore: player1Score,
-          });
+        // Update the player's score based on who emitted the event
+        if (room.player1.socket.id === socket.id) {
+            room.score1 = data.count;
+            room.player1Ready = true; // Mark player 1 as ready
+        } else if (room.player2.socket.id === socket.id) {
+            room.score2 = data.count;
+            room.player2Ready = true; // Mark player 2 as ready
         }
-  
-        
-  
-        // Reset the room state for next round
-        room.countReady = 1; // Reset countReady for next round
-      }
+
+        // Proceed if both players are ready
+        if (room.player1Ready && room.player2Ready) {
+            const player1Score = room.score1;
+            const player2Score = room.score2;
+
+            let winner;
+
+            if (player1Score >= 5 && player1Score > player2Score) {
+                winner = room.player1.playerName;
+                room.player1.socket?.emit("WinnerDeclared", {
+                    winner: room.player1.playerName,
+                    opponentScore: player2Score,
+                });
+                room.player2.socket?.emit("WinnerDeclared", {
+                    winner: room.player1.playerName,
+                    opponentScore: player1Score,
+                });
+            } else if (player2Score >= 5 && player2Score > player1Score) {
+                winner = room.player2.playerName;
+                room.player1.socket?.emit("WinnerDeclared", {
+                    winner: room.player2.playerName,
+                    opponentScore: player2Score,
+                });
+                room.player2.socket?.emit("WinnerDeclared", {
+                    winner: room.player2.playerName,
+                    opponentScore: player1Score,
+                });
+            } else if (player1Score >= 5 && player1Score === player2Score) {
+                winner = 'none';
+                room.player1.socket?.emit("WinnerDeclared", {
+                    winner: 'none',
+                    opponentScore: player2Score,
+                });
+                room.player2.socket?.emit("WinnerDeclared", {
+                    winner: 'none',
+                    opponentScore: player1Score,
+                });
+            }
+
+            // Reset the readiness state for the next round
+            room.player1Ready = false;
+            room.player2Ready = false;
+        }
     }
-  });
+});
+
   
   socket.on("PlayAgain",() =>{
     const currentUser = allUsers[socket.id];
