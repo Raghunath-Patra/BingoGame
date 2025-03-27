@@ -205,57 +205,55 @@ const playAgain = () =>{
     )
   }
   return (
+    
     <div className="container">
+      <div>
+        {(gameWinner !== 'opponentLeft')?matchAgain : ""}
+      </div>
       <div className="turn">
         <div className={`player ${(finishState ==='continue' && playingAs===currentPlayer) ? 'my-turn':''}`} >{playerName}</div>
         <b>Bingo</b>
         <div className={`player ${(finishState === 'continue' && playingAs!==currentPlayer) ? 'opponent-turn':''}`}>{opponentName}</div>
       </div>
-  
-      <div className="status-info-container">
-        <div className="info">
-          {(gameWinner && gameWinner === playerName) ? 'You WON the Game 🤩' : ''}
-          {(gameWinner && gameWinner === opponentName) ? 'You LOST the Game 😟' : ''}
-          {(gameWinner && gameWinner === 'none') ? "It's a Draw" : ""}
-          {(gameWinner && gameWinner !== 'opponentLeft') ? <br /> : null}
-          {(gameWinner && gameWinner !== 'opponentLeft') ? "Your Score: " + count + " Opponent's Score: " + opponentcount : ""}
-          {(gameWinner && gameWinner === 'opponentLeft') ? "Opponent Left the Match" : ""}
-          {(!finishState) ? 'Mark Numbers 1-25' : ''}
-          {(finishState && finishState === 'start') ? 'Let opponent finish Numbering' : ''}
-          {(finishState && finishState === 'continue' && !gameWinner && playingAs === currentPlayer) ? "Your Turn" : ""}
-          {(finishState && finishState === 'continue' && !gameWinner && playingAs !== currentPlayer) ? "Opponent's Turn" : ""}
-        </div>
-  
-        {/* Play Again Button */}
-        <div className={`playAgain ${(gameWinner && gameWinner !== 'opponentLeft') ? 'visible' : ''}`}>
-          <button onClick={playAgain}>Play Again</button>
-        </div>
-      </div>
-  
       <div className={`game-board ${(gameWinner && gameWinner === opponentName) ? 'opponent-won' : ''}`}>
         {
-          renderFrom.map((arr, rowIndex) =>
-            arr.map((e, colIndex) => {
+          renderFrom.map( (arr,rowIndex) =>
+            arr.map((e,colIndex) =>{
               return <Box 
-                playingAs={playingAs}
-                numArray={numArray}
-                setNumArray={setNumArray}
-                finishState={finishState}
-                setFinishState={setFinishState}
-                setMarkBox={setMarkBox}
-                numState={numState}
-                setNumState={setNumState}
-                currentPlayer={currentPlayer}
-                setCurrentPlayer={setCurrentPlayer}
-                isplayAgain={isplayAgain}
-                setIsPlayingAgain={setIsPlayAgain}
-                id={rowIndex * 5 + colIndex}
-                key={rowIndex * 5 + colIndex} />;
+              playingAs = {playingAs}
+              numArray = {numArray}
+              setNumArray={setNumArray}
+              finishState = {finishState}
+              setFinishState = {setFinishState}
+              setMarkBox = {setMarkBox}
+              numState = {numState}
+              setNumState = {setNumState}
+              currentPlayer = {currentPlayer}
+              setCurrentPlayer = {setCurrentPlayer}
+              isplayAgain = {isplayAgain}
+              setIsPlayingAgain={setIsPlayAgain}
+              id={rowIndex*5 + colIndex}
+              key={rowIndex*5 + colIndex}/>;
             })
           )}
       </div>
+      <div className="info">
+        {(gameWinner && gameWinner === playerName)? 'You WON the Game 🤩':''}
+        {(gameWinner && gameWinner === opponentName)? 'You LOST the Game 😟':''}
+        {(gameWinner && gameWinner === 'none')? "It's a Draw":""}
+        {(gameWinner && gameWinner !== 'opponentLeft')? <br/>:null}
+        {(gameWinner && gameWinner !== 'opponentLeft')? "Your Score:"+count+" Opponent's Score:"+opponentcount:""}
+        {(gameWinner && gameWinner === 'opponentLeft')? "Opponent Left the Match":""}
+        {(!finishState)? 'Mark Numbers 1-25':''}
+        {(finishState && finishState === 'start')? 'Let opponent finish Numbering':''}
+        {(finishState && finishState === 'continue'&& !gameWinner && playingAs === currentPlayer)? "Your Turn":""}
+        {(finishState && finishState === 'continue'&& !gameWinner && playingAs !== currentPlayer)? "Opponent's Turn":""}
+      </div>
+      <div className={`playAgain ${(gameWinner && gameWinner!=='opponentLeft') ? 'visible': ''}`}>
+          <button onClick={playAgain}>Play Again</button>
+      </div>
     </div>
-  );
-}  
+  )
+}
 
 export default App
