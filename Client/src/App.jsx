@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import './App.css'
 import Box from './Box.jsx'
 import { io } from 'socket.io-client' 
@@ -12,14 +12,14 @@ const renderFrom = [
   [null,null,null,null,null]
 ]
 
-const App = ()=> {
+const App = () => {
   const [numState, setNumState] = useState(0);
   const [currentPlayer, setCurrentPlayer] = useState("player1");
   const [firstPlayer, setFirstPlayer] = useState('player1');
   const [finishState, setFinishState] = useState(null);
   const [markBox, setMarkBox] = useState(renderFrom);
   const [count, setCount] = useState(0);
-  const [playGame,setPlayGame] = useState(false);
+  const [playGame, setPlayGame] = useState(false);
   const [socket, setSocket] = useState(null);
   const [playerName, setPlayerName] = useState(null);
   const [opponentName, setOpponentName] = useState(null);
@@ -30,259 +30,287 @@ const App = ()=> {
   const [isplayAgain, setIsPlayAgain] = useState(false);
   const [wantToPlayAgain, setWantToPlayAgain] = useState(false);
   const [matchAgain, setMatchAgain] = useState(null);
-  useEffect(() => {
-    if(finishState === 'gameOver'){
-      return;
-    }
-    if (finishState === 'continue') {
-      let rowCount = 0;
-      let colCount = 0;
-      let diagonalCount = 0;
-      for (let i = 0; i < 5; i++) {
-        let isRowFull = true;
-        for (let j = 0; j < 5; j++) {
-          if (markBox[i][j] === null) {
-            isRowFull = false;
-            break;
-          }
-        }
-        if (isRowFull) rowCount++;
-      }
-      for (let i = 0; i < 5; i++) {
-        let isColFull = true;
-        for (let j = 0; j < 5; j++) {
-          if (markBox[j][i] === null) {
-            isColFull = false;
-            break;
-          }
-        }
-        if (isColFull) colCount++;
-      }
-      //Check Diagonal
-      if(markBox[0][4]!==null && markBox[1][3]!==null && markBox[2][2]!==null && markBox[3][1]!==null && markBox[4][0]!==null)
-        diagonalCount++;
-      if(markBox[0][0]!==null && markBox[1][1]!==null && markBox[2][2]!==null && markBox[3][3]!==null && markBox[4][4]!==null)
-        diagonalCount++;
-      setCount(rowCount + colCount + diagonalCount);
-    }
-}, [markBox,finishState]);
 
-useEffect(() => {
-  if(finishState === 'start'){
-    socket?.emit("start_to_play"); 
-  }
-}, [finishState]);
+  // Use ref to store socket event cleanup functions
+  const socketCleanupRef = useRef([]);
 
-socket?.on("opponent-ready", function(){
-  setFinishState("continue");
-}) 
-
-useEffect(() => {
-  if(finishState === 'continue'){
-    socket?.emit("CheckWinner",{
-      count: count,
-    });
-  }
-}, [count]);
-
-useEffect(() => { 
-  if(finishState === 'continue' && playingAs !== currentPlayer){
+  // Memoized function to calculate game score
+  const calculateScore = useCallback((board) => {
+    let rowCount = 0;
+    let colCount = 0;
+    let diagonalCount = 0;
     
-    socket?.emit("playerMoveFromClient",{
-      num: numArray,
-    });
-  }
-}, [numArray]);
+    // Check rows
+    for (let i = 0; i < 5; i++) {
+      if (board[i].every(cell => cell !== null)) rowCount++;
+    }
+    
+    // Check columns
+    for (let i = 0; i < 5; i++) {
+      if (board.every(row => row[i] !== null)) colCount++;
+    }
+    
+    // Check diagonals
+    if (board[0][4] !== null && board[1][3] !== null && board[2][2] !== null && 
+        board[3][1] !== null && board[4][0] !== null) diagonalCount++;
+    if (board[0][0] !== null && board[1][1] !== null && board[2][2] !== null && 
+        board[3][3] !== null && board[4][4] !== null) diagonalCount++;
+    
+    return rowCount + colCount + diagonalCount;
+  }, []);
 
-socket?.on("WinnerDeclared",(data)=>{
-  setFinishState('gameOver');
-  setWinner(data?.winner);
-  setOpponentCount(data?.opponentScore);
-});
-
-socket?.on("connect", function(){
-  setPlayGame(true);
-});
-
-socket?.on("OpponentNotFound", function () {
-  setOpponentName(false);
-});
-
-socket?.on("OpponentFound", function (data) {
-  setOpponentName(data.opponentName);
-  setPlayingAs(data.playingAs);
-  
-});
-
-socket?.on("opponentLeftMatch",()=>{
-  setFinishState('gameOver');
-  setWinner('opponentLeft');
-});
-
-const takePlayerName = async() =>{
-  const result = await Swal.fire({
-    title: "Enter your Name",
-    input: "text",
-    inputLabel: "name",
-    showCancelButton: true,
-    inputValidator: (value) => {
-      if (!value) {
-        return "You need to write something!";
+  // Optimized effect for score calculation
+  useEffect(() => {
+    if (finishState === 'continue') {
+      const newCount = calculateScore(markBox);
+      if (newCount !== count) {
+        setCount(newCount);
       }
     }
-  });
-  return result;
-}
+  }, [markBox, finishState, calculateScore, count]);
 
-socket?.on("playerMoveFromServer", (data) => {
-  if(data){
-    setNumArray(data.num);
-    if(finishState === 'continue' && playingAs !== currentPlayer){
-      setCurrentPlayer(playingAs);
+  // Optimized effect for game start
+  useEffect(() => {
+    if (finishState === 'start' && socket) {
+      socket.emit("start_to_play");
     }
-  }
-  else{
-    console.log("some error occured");
-  }
-});
+  }, [finishState, socket]);
 
-async function findPlayer(){
-  const result = await takePlayerName();
-  if(!result.isConfirmed){
-    return;
-  }
-  const userName = result.value;
-  setPlayerName(userName);
-  const newSocket = io("https://bingogame-backend.onrender.com",{
-    //const newSocket = io("http://localhost:3000",{
-    autoConnect: true,
-  });
+  // Optimized effect for winner check
+  useEffect(() => {
+    if (finishState === 'continue' && socket) {
+      socket.emit("CheckWinner", { count });
+    }
+  }, [count, finishState, socket]);
 
-  newSocket?.emit("request_to_play", {
-    playerName: userName,
-  });
+  // Optimized effect for player moves
+  useEffect(() => {
+    if (finishState === 'continue' && playingAs !== currentPlayer && numArray && socket) {
+      socket.emit("playerMoveFromClient", { num: numArray });
+    }
+  }, [numArray, finishState, playingAs, currentPlayer, socket]);
 
-  setSocket(newSocket);
-}
+  // Socket event handlers with cleanup
+  useEffect(() => {
+    if (!socket) return;
 
-const findNewPlayer = ()=>{
-  //socket?.disconnect();  // Disconnect the current socket connection
-  socket?.emit("disconnect",{});
-  setSocket(null);  // Set the socket to null
-  setOpponentName(null);  // Set the opponent name to null
-  setPlayingAs(null);  // Set the playingAs to null
+    const handlers = [
+      ['opponent-ready', () => setFinishState("continue")],
+      ['WinnerDeclared', (data) => {
+        setFinishState('gameOver');
+        setWinner(data?.winner);
+        setOpponentCount(data?.opponentScore);
+      }],
+      ['connect', () => setPlayGame(true)],
+      ['OpponentNotFound', () => setOpponentName(false)],
+      ['OpponentFound', (data) => {
+        setOpponentName(data.opponentName);
+        setPlayingAs(data.playingAs);
+      }],
+      ['opponentLeftMatch', () => {
+        setFinishState('gameOver');
+        setWinner('opponentLeft');
+      }],
+      ['playerMoveFromServer', (data) => {
+        if (data?.num) {
+          setNumArray(data.num);
+          if (finishState === 'continue' && playingAs !== currentPlayer) {
+            setCurrentPlayer(playingAs);
+          }
+        }
+      }],
+      ['opponent-ready-again', () => {
+        resetGameState();
+        setIsPlayAgain(true);
+        setWantToPlayAgain(false);
+        setCurrentPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
+        setFirstPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
+        setMatchAgain("");
+      }],
+      ['oppoWantToPlayAgain', () => setMatchAgain("Opponent Wants to Play Again")]
+    ];
 
-  setMarkBox(renderFrom);
-  setNumState(0);
-  setFinishState(null);
-  setNumArray(0);
-  setWinner(null);
-  setOpponentCount(0);
-  setCount(0);
-  const newSocket = io("https://bingogame-backend.onrender.com",{
-    //const newSocket = io("http://localhost:3000",{
-    autoConnect: true,
-  });
+    // Add all event listeners
+    handlers.forEach(([event, handler]) => {
+      socket.on(event, handler);
+    });
 
-  newSocket?.emit("request_to_play", {
-    playerName: userName,
-  });
+    // Store cleanup function
+    socketCleanupRef.current = () => {
+      handlers.forEach(([event, handler]) => {
+        socket.off(event, handler);
+      });
+    };
 
-  setSocket(newSocket);
-}
+    return () => {
+      if (socketCleanupRef.current) {
+        socketCleanupRef.current();
+      }
+    };
+  }, [socket, finishState, playingAs, currentPlayer, firstPlayer]);
 
-socket?.on("opponent-ready-again",()=>{
-  setMarkBox(renderFrom);
-  setNumState(0);
-  setFinishState(null);
-  setNumArray(0);
-  setWinner(null);
-  setOpponentCount(0);
-  setCount(0);
-  setIsPlayAgain(true);
-  setWantToPlayAgain(false);
-  setCurrentPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
-  setFirstPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
-  setMatchAgain("");
-});
-socket?.on("oppoWantToPlayAgain",()=>{
-    setMatchAgain("Opponent Wants to Play Again")
-});
-const playAgain = () =>{
-  if(!wantToPlayAgain){
-    setWantToPlayAgain(true);
-    setMatchAgain("Waiting for Opponent's Response..");
-    socket?.emit("PlayAgain");
-  }
-}
-  if(!playGame){
-    return(
+  // Memoized reset function
+  const resetGameState = useCallback(() => {
+    setMarkBox(renderFrom.map(row => [...row])); // Create new arrays
+    setNumState(0);
+    setFinishState(null);
+    setNumArray(0);
+    setWinner(null);
+    setOpponentCount(0);
+    setCount(0);
+  }, []);
+
+  // Memoized player name function
+  const takePlayerName = useCallback(async () => {
+    const result = await Swal.fire({
+      title: "Enter your Name",
+      input: "text",
+      inputLabel: "name",
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) {
+          return "You need to write something!";
+        }
+      }
+    });
+    return result;
+  }, []);
+
+  // Optimized find player function
+  const findPlayer = useCallback(async () => {
+    const result = await takePlayerName();
+    if (!result.isConfirmed) return;
+    
+    const userName = result.value;
+    setPlayerName(userName);
+    
+    const newSocket = io("https://bingogame-backend.onrender.com", {
+      autoConnect: true,
+    });
+
+    newSocket.emit("request_to_play", { playerName: userName });
+    setSocket(newSocket);
+  }, [takePlayerName]);
+
+  // Optimized find new player function
+  const findNewPlayer = useCallback(() => {
+    if (socket) {
+      socket.emit("disconnect", {});
+      if (socketCleanupRef.current) {
+        socketCleanupRef.current();
+      }
+    }
+    
+    setSocket(null);
+    setOpponentName(null);
+    setPlayingAs(null);
+    resetGameState();
+    
+    const newSocket = io("https://bingogame-backend.onrender.com", {
+      autoConnect: true,
+    });
+
+    newSocket.emit("request_to_play", { playerName });
+    setSocket(newSocket);
+  }, [socket, playerName, resetGameState]);
+
+  // Optimized play again function
+  const playAgain = useCallback(() => {
+    if (!wantToPlayAgain && socket) {
+      setWantToPlayAgain(true);
+      setMatchAgain("Waiting for Opponent's Response..");
+      socket.emit("PlayAgain");
+    }
+  }, [wantToPlayAgain, socket]);
+
+  // Memoized render conditions
+  const shouldShowMatchAgain = useMemo(() => 
+    gameWinner !== 'opponentLeft' ? matchAgain : "", 
+    [gameWinner, matchAgain]
+  );
+
+  const gameInfo = useMemo(() => {
+    if (gameWinner && gameWinner === playerName) return 'You WON the Game 🤩';
+    if (gameWinner && gameWinner === opponentName) return 'You LOST the Game 😟';
+    if (gameWinner && gameWinner === 'none') return "It's a Draw";
+    if (gameWinner && gameWinner === 'opponentLeft') return "Opponent Left the Match";
+    if (!finishState) return 'Mark Numbers 1-25';
+    if (finishState === 'start') return 'Let opponent finish Numbering';
+    if (finishState === 'continue' && !gameWinner && playingAs === currentPlayer) return "Your Turn";
+    if (finishState === 'continue' && !gameWinner && playingAs !== currentPlayer) return "Opponent's Turn";
+    return '';
+  }, [gameWinner, playerName, opponentName, finishState, playingAs, currentPlayer]);
+
+  const scoreInfo = useMemo(() => {
+    if (gameWinner && gameWinner !== 'opponentLeft') {
+      return `Your Score: ${count} Opponent's Score: ${opponentcount}`;
+    }
+    return '';
+  }, [gameWinner, count, opponentcount]);
+
+  if (!playGame) {
+    return (
       <div className='container'>
         <button onClick={findPlayer} className='find-player'>Find a Player</button>
       </div>
-    )
+    );
   }
 
-  if(playGame && !opponentName){
-    return(
+  if (playGame && !opponentName) {
+    return (
       <div className='container'>
         <div>Looking for an opponent...</div>
       </div>
-    )
+    );
   }
+
   return (
-    
     <div className="container">
-      <div>
-        {(gameWinner !== 'opponentLeft')?matchAgain : ""}
-      </div>
+      <div>{shouldShowMatchAgain}</div>
       <div className="turn">
-        <div className={`player ${(finishState ==='continue' && playingAs===currentPlayer) ? 'my-turn':''}`} >{playerName}</div>
+        <div className={`player ${(finishState === 'continue' && playingAs === currentPlayer) ? 'my-turn' : ''}`}>
+          {playerName}
+        </div>
         <b>Bingo</b>
-        <div className={`player ${(finishState === 'continue' && playingAs!==currentPlayer) ? 'opponent-turn':''}`}>{opponentName}</div>
+        <div className={`player ${(finishState === 'continue' && playingAs !== currentPlayer) ? 'opponent-turn' : ''}`}>
+          {opponentName}
+        </div>
       </div>
       <div className={`game-board ${(gameWinner && (gameWinner === opponentName || gameWinner === 'opponentLeft')) ? 'opponent-won' : ''}`}>
-        {
-          renderFrom.map( (arr,rowIndex) =>
-            arr.map((e,colIndex) =>{
-              return <Box 
-              playingAs = {playingAs}
-              numArray = {numArray}
+        {renderFrom.map((arr, rowIndex) =>
+          arr.map((e, colIndex) => (
+            <Box 
+              key={rowIndex * 5 + colIndex}
+              playingAs={playingAs}
+              numArray={numArray}
               setNumArray={setNumArray}
-              finishState = {finishState}
-              setFinishState = {setFinishState}
-              setMarkBox = {setMarkBox}
-              numState = {numState}
-              setNumState = {setNumState}
-              currentPlayer = {currentPlayer}
-              setCurrentPlayer = {setCurrentPlayer}
-              isplayAgain = {isplayAgain}
+              finishState={finishState}
+              setFinishState={setFinishState}
+              setMarkBox={setMarkBox}
+              numState={numState}
+              setNumState={setNumState}
+              currentPlayer={currentPlayer}
+              setCurrentPlayer={setCurrentPlayer}
+              isplayAgain={isplayAgain}
               setIsPlayingAgain={setIsPlayAgain}
-              id={rowIndex*5 + colIndex}
-              key={rowIndex*5 + colIndex}/>;
-            })
-          )}
+              id={rowIndex * 5 + colIndex}
+            />
+          ))
+        )}
       </div>
       <div className="info">
-        {(gameWinner && gameWinner === playerName)? 'You WON the Game 🤩':''}
-        {(gameWinner && gameWinner === opponentName)? 'You LOST the Game 😟':''}
-        {(gameWinner && gameWinner === 'none')? "It's a Draw":""}
-        {(gameWinner && gameWinner !== 'opponentLeft')? <br/>:null}
-        {(gameWinner && gameWinner !== 'opponentLeft')? "Your Score:"+count+" Opponent's Score:"+opponentcount:""}
-        {(gameWinner && gameWinner === 'opponentLeft')? "Opponent Left the Match":""}
-        {(!finishState)? 'Mark Numbers 1-25':''}
-        {(finishState && finishState === 'start')? 'Let opponent finish Numbering':''}
-        {(finishState && finishState === 'continue'&& !gameWinner && playingAs === currentPlayer)? "Your Turn":""}
-        {(finishState && finishState === 'continue'&& !gameWinner && playingAs !== currentPlayer)? "Opponent's Turn":""}
+        {gameInfo}
+        {gameWinner && gameWinner !== 'opponentLeft' && <br />}
+        {scoreInfo}
       </div>
-      <div className={`playAgain ${(gameWinner && gameWinner!=='opponentLeft') ? 'visible': ''}`}>
-          <button onClick={playAgain}>Play Again</button>
+      <div className={`playAgain ${(gameWinner && gameWinner !== 'opponentLeft') ? 'visible' : ''}`}>
+        <button onClick={playAgain}>Play Again</button>
       </div>
-      <div className={`playAgain ${(gameWinner && gameWinner==='opponentLeft') ? 'visible': ''}`}>
-          <button onClick={findNewPlayer}>Find Another Player</button>
+      <div className={`playAgain ${(gameWinner && gameWinner === 'opponentLeft') ? 'visible' : ''}`}>
+        <button onClick={findNewPlayer}>Find Another Player</button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;
