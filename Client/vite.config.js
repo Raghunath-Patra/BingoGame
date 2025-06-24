@@ -3,19 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react({
-      // Enable React Fast Refresh
-      fastRefresh: true,
-      // Optimize babel config for production
-      babel: {
-        compact: true,
-        minified: true,
-      }
-    })
-  ],
+  plugins: [react()],
   
-  // Build optimizations
+  // Simple build optimizations
   build: {
     // Optimize chunk splitting
     rollupOptions: {
@@ -27,40 +17,13 @@ export default defineConfig({
         }
       }
     },
-    // Enable minification
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remove console logs in production
-        drop_debugger: true
-      }
-    },
-    // Optimize chunk size
-    chunkSizeWarningLimit: 1000,
-    // Enable source maps for debugging (disable in production if not needed)
-    sourcemap: false
+    // Let Vite handle minification automatically
+    sourcemap: false,
+    target: 'es2020'
   },
   
-  // Development optimizations
-  server: {
-    // Enable HMR
-    hmr: true,
-    // Optimize file watching
-    watch: {
-      usePolling: false,
-    }
-  },
-  
-  // Enable dependency pre-bundling optimizations
+  // Enable dependency pre-bundling
   optimizeDeps: {
-    include: ['react', 'react-dom', 'socket.io-client', 'sweetalert2'],
-    // Exclude problematic dependencies if any
-    exclude: []
-  },
-  
-  // Enable esbuild for faster builds
-  esbuild: {
-    target: 'es2020',
-    legalComments: 'none'
+    include: ['react', 'react-dom', 'socket.io-client', 'sweetalert2']
   }
 })
