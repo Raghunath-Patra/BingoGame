@@ -1,118 +1,80 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import React, { useState, useEffect} from 'react'
 import './Box.css'
 
-const Box = memo(({
-  numArray,
-  setNumArray,
-  playingAs,
-  setFinishState,
-  finishState,
-  setMarkBox,
-  id,
-  numState,
-  setNumState,
-  currentPlayer,
-  setCurrentPlayer,
-  isplayAgain,
-  setIsPlayingAgain
-}) => {
-  const [num, setNum] = useState(null);
-  const [clas, setClas] = useState('cell');
 
-  // Memoize position calculations
-  const position = useMemo(() => ({
-    row: Math.floor(id / 5),
-    col: id % 5
-  }), [id]);
+const Box = ({numArray,setNumArray,playingAs,setFinishState,finishState,setMarkBox,id,numState,setNumState,currentPlayer,setCurrentPlayer,isplayAgain,setIsPlayingAgain}) => {
+    const [num, setNum] = useState(null);
+    const [clas, setClas] = useState('cell');
 
-  // Memoized click handler
-  const clickOnCell = useCallback(() => {
-    // Handle number marking phase
-    if (!finishState) {
-      if (numState < 25 && !num) {
-        const newNum = numState + 1;
-        setNum(newNum);
-        setNumState(newNum);
-      }
-      return;
+    const clickOnCell = () =>{
+        if(!finishState){
+            if(numState < 25){
+                if(!num){
+                    setNum(numState + 1);
+                    setNumState(numState + 1);
+                }
+            /*    if(numState === 24){
+                    setFinishState('start');
+                }*/
+            }
+        }
+       if(finishState === 'continue' && playingAs !== currentPlayer){
+        return;
+       }
+        if (finishState==='continue' && clas !== 'cell active') {
+            setClas('cell active');
+            const myCurrent = currentPlayer;
+            if(currentPlayer === playingAs){
+                setMarkBox(prevState => {
+                    const newState = prevState.map(row => row.slice());
+                    const row = Math.floor(id / 5);
+                    const col = id % 5;
+                    newState[row][col] = myCurrent;
+                    return newState;
+                });
+            }
+            setCurrentPlayer(currentPlayer === 'player1' ? 'player2' : 'player1');
+            setNumArray(num);
+        } 
     }
+    useEffect(() => {
+        if(numState == 25){
+            setFinishState('start');
+        }
+    }, [numState]);
+    useEffect(() => {
+        if(finishState === 'gameOver' && clas !== 'cell active'){
+            setClas('cell not-allowed');
+        }
+    }, [finishState]);
 
-    // Handle game phase
-    if (finishState === 'continue') {
-      if (playingAs !== currentPlayer) return;
-      if (clas === 'cell active') return;
+    useEffect(() => {
+        if(isplayAgain){
+            setClas('cell');
+            setNum(null);
+            setIsPlayingAgain(false);
+        }
+    }, [isplayAgain]);
 
-      setClas('cell active');
-      const myCurrent = currentPlayer;
-      
-      // Optimized markBox update - only update the specific cell
-      setMarkBox(prevState => {
-        const newState = [...prevState];
-        newState[position.row] = [...newState[position.row]];
-        newState[position.row][position.col] = myCurrent;
-        return newState;
-      });
-
-      setCurrentPlayer(currentPlayer === 'player1' ? 'player2' : 'player1');
-      setNumArray(num);
-    }
-  }, [
-    finishState,
-    numState,
-    num,
-    playingAs,
-    currentPlayer,
-    clas,
-    position,
-    setNumState,
-    setMarkBox,
-    setCurrentPlayer,
-    setNumArray
-  ]);
-
-  // Consolidated useEffect for game state changes
-  useEffect(() => {
-    // Check if numbering phase is complete
-    if (numState === 25) {
-      setFinishState('start');
-    }
-
-    // Handle game over state
-    if (finishState === 'gameOver' && clas !== 'cell active') {
-      setClas('cell not-allowed');
-    }
-
-    // Handle play again
-    if (isplayAgain) {
-      setClas('cell');
-      setNum(null);
-      setIsPlayingAgain(false);
-    }
-  }, [numState, finishState, clas, isplayAgain, setFinishState, setIsPlayingAgain]);
-
-  // Optimized effect for opponent moves
-  useEffect(() => {
-    if (currentPlayer === playingAs && num === numArray && finishState === 'continue') {
-      const myCurrent = playingAs === 'player1' ? 'player2' : 'player1';
-      
-      setMarkBox(prevState => {
-        const newState = [...prevState];
-        newState[position.row] = [...newState[position.row]];
-        newState[position.row][position.col] = myCurrent;
-        return newState;
-      });
-      
-      setClas('cell active');
-    }
-  }, [currentPlayer, playingAs, num, numArray, finishState, position, setMarkBox]);
+    useEffect(() => {
+        const myCurrent = playingAs === 'player1'?'player2':'player1';
+        if(currentPlayer === playingAs){
+            if(num===numArray){
+                setMarkBox(prevState => {
+                    const newState = prevState.map(row => row.slice());
+                    const i = Math.floor(id / 5);
+                    const j = id % 5;
+                    newState[i][j] = myCurrent;
+                    return newState;
+                });
+                setClas('cell active');
+            }  
+        }
+    }, [currentPlayer]);
 
   return (
-    <div onClick={clickOnCell} className={clas}>
-      {num}
-    </div>
-  );
-});
+    <div onClick={clickOnCell} className= {clas} >{num}</div>
+  )
+}
 
-Box.displayName = 'Box';
-
-export default Box;
+export default Box

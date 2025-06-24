@@ -1,57 +1,30 @@
-/* Use will-change for elements that will be animated/transformed */
-.cell {
-  width: 100%;
-  aspect-ratio: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border: 3px solid #ececec;
-  font-size: 1.5em;
-  background-color: antiquewhite;
-  border-radius: 12px;
-  
-  /* Optimize box-shadow for better performance */
-  box-shadow: 
-    -10px -10px 15px rgba(255, 255, 255, 0.521),
+.cell{
+    width:100%;
+    aspect-ratio: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 3px solid #ececec;
+    font-size: 1.5em;
+    background-color: antiquewhite;
+    border-radius: 12px;
+    box-shadow: -10px -10px 15px rgba(255,255,255,0.521),
     10px 10px 15px rgba(61, 61, 61, 0.12),
     inset -10px -10px 15px rgba(255, 255, 255, 0.521),
-    inset 10px 10px 15px rgba(61, 61, 61, 0.12);
-  
-  color: #242222;
-  
-  /* Optimize rendering */
-  will-change: background-color, font-size;
-  backface-visibility: hidden;
-  transform: translateZ(0); /* Force hardware acceleration */
-  
-  /* Optimize transitions */
-  transition: background-color 0.2s ease, font-size 0.2s ease;
+    10px 10px 15px rgba(61, 61, 61, 0.12);
+    color: #242222;
 }
-
-.cell:hover {
-  cursor: pointer;
+.cell:hover{
+    cursor: pointer;
 }
-
-.active {
-  font-size: 1.75em; /* Use relative units instead of 'larger' */
-  background-color: rgb(230, 140, 22);
+.active{
+    transition: 0.2s ease;
+    font-size: larger;
+    background-color: rgb(230, 140, 22);
 }
-
-.active:hover {
-  cursor: not-allowed;
+.active:hover{
+    cursor:not-allowed;
 }
-
-.not-allowed:hover {
-  cursor: not-allowed;
-}
-
-/* Media query optimization - combine similar rules */
-@media screen and (max-width: 270px) {
-  .cell {
-    font-size: 1rem;
-  }
-  
-  .active {
-    font-size: 1.25rem;
-  }
+.not-allowed:hover{
+    cursor: not-allowed;
 }
