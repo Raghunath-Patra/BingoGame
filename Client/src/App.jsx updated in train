@@ -30,6 +30,30 @@ const App = ()=> {
   const [isplayAgain, setIsPlayAgain] = useState(false);
   const [wantToPlayAgain, setWantToPlayAgain] = useState(false);
   const [matchAgain, setMatchAgain] = useState(null);
+
+  // Monitor numState and emit when player finishes numbering
+  useEffect(() => {
+    if(numState === 25 && finishState !== 'start' && finishState !== 'continue'){
+      setFinishState('start');
+      socket?.emit("start_to_play"); 
+    }
+  }, [numState]);
+
+  // Listen for opponent ready event
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleOpponentReady = () => {
+      setFinishState("continue");
+    };
+
+    socket.on("opponent-ready", handleOpponentReady);
+
+    return () => {
+      socket.off("opponent-ready", handleOpponentReady);
+    };
+  }, [socket]);
+
   useEffect(() => {
     if(finishState === 'gameOver'){
       return;
@@ -68,16 +92,6 @@ const App = ()=> {
 }, [markBox,finishState]);
 
 useEffect(() => {
-  if(finishState === 'start'){
-    socket?.emit("start_to_play"); 
-  }
-}, [finishState]);
-
-socket?.on("opponent-ready", function(){
-  setFinishState("continue");
-}) 
-
-useEffect(() => {
   if(finishState === 'continue'){
     socket?.emit("CheckWinner",{
       count: count,
@@ -94,30 +108,84 @@ useEffect(() => {
   }
 }, [numArray]);
 
-socket?.on("WinnerDeclared",(data)=>{
-  setFinishState('gameOver');
-  setWinner(data?.winner);
-  setOpponentCount(data?.opponentScore);
-});
+useEffect(() => {
+  if (!socket) return;
 
-socket?.on("connect", function(){
-  setPlayGame(true);
-});
+  const handleWinnerDeclared = (data) => {
+    setFinishState('gameOver');
+    setWinner(data?.winner);
+    setOpponentCount(data?.opponentScore);
+  };
 
-socket?.on("OpponentNotFound", function () {
-  setOpponentName(false);
-});
+  const handleConnect = () => {
+    setPlayGame(true);
+  };
 
-socket?.on("OpponentFound", function (data) {
-  setOpponentName(data.opponentName);
-  setPlayingAs(data.playingAs);
-  
-});
+  const handleOpponentNotFound = () => {
+    setOpponentName(false);
+  };
 
-socket?.on("opponentLeftMatch",()=>{
-  setFinishState('gameOver');
-  setWinner('opponentLeft');
-});
+  const handleOpponentFound = (data) => {
+    setOpponentName(data.opponentName);
+    setPlayingAs(data.playingAs);
+  };
+
+  const handleOpponentLeft = () => {
+    setFinishState('gameOver');
+    setWinner('opponentLeft');
+  };
+
+  const handlePlayerMove = (data) => {
+    if(data){
+      setNumArray(data.num);
+      if(finishState === 'continue' && playingAs !== currentPlayer){
+        setCurrentPlayer(playingAs);
+      }
+    }
+    else{
+      console.log("some error occured");
+    }
+  };
+
+  const handleOpponentReadyAgain = () => {
+    setMarkBox(renderFrom);
+    setNumState(0);
+    setFinishState(null);
+    setNumArray(0);
+    setWinner(null);
+    setOpponentCount(0);
+    setCount(0);
+    setIsPlayAgain(true);
+    setWantToPlayAgain(false);
+    setCurrentPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
+    setFirstPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
+    setMatchAgain("");
+  };
+
+  const handleOppoWantToPlayAgain = () => {
+    setMatchAgain("Opponent Wants to Play Again");
+  };
+
+  socket.on("WinnerDeclared", handleWinnerDeclared);
+  socket.on("connect", handleConnect);
+  socket.on("OpponentNotFound", handleOpponentNotFound);
+  socket.on("OpponentFound", handleOpponentFound);
+  socket.on("opponentLeftMatch", handleOpponentLeft);
+  socket.on("playerMoveFromServer", handlePlayerMove);
+  socket.on("opponent-ready-again", handleOpponentReadyAgain);
+  socket.on("oppoWantToPlayAgain", handleOppoWantToPlayAgain);
+
+  return () => {
+    socket.off("WinnerDeclared", handleWinnerDeclared);
+    socket.off("connect", handleConnect);
+    socket.off("OpponentNotFound", handleOpponentNotFound);
+    socket.off("OpponentFound", handleOpponentFound);
+    socket.off("opponentLeftMatch", handleOpponentLeft);
+    socket.off("playerMoveFromServer", handlePlayerMove);
+    socket.off("opponent-ready-again", handleOpponentReadyAgain);
+    socket.off("oppoWantToPlayAgain", handleOppoWantToPlayAgain);
+  };
+}, [socket, finishState, playingAs, currentPlayer, firstPlayer]);
 
 const takePlayerName = async() =>{
   const result = await Swal.fire({
@@ -133,18 +201,6 @@ const takePlayerName = async() =>{
   });
   return result;
 }
-
-socket?.on("playerMoveFromServer", (data) => {
-  if(data){
-    setNumArray(data.num);
-    if(finishState === 'continue' && playingAs !== currentPlayer){
-      setCurrentPlayer(playingAs);
-    }
-  }
-  else{
-    console.log("some error occured");
-  }
-});
 
 async function findPlayer(){
   const result = await takePlayerName();
@@ -166,11 +222,11 @@ async function findPlayer(){
 }
 
 const findNewPlayer = ()=>{
-  //socket?.disconnect();  // Disconnect the current socket connection
   socket?.emit("disconnect",{});
-  setSocket(null);  // Set the socket to null
-  setOpponentName(null);  // Set the opponent name to null
-  setPlayingAs(null);  // Set the playingAs to null
+  socket?.disconnect();
+  setSocket(null);
+  setOpponentName(null);
+  setPlayingAs(null);
 
   setMarkBox(renderFrom);
   setNumState(0);
@@ -185,29 +241,12 @@ const findNewPlayer = ()=>{
   });
 
   newSocket?.emit("request_to_play", {
-    playerName: userName,
+    playerName: playerName,
   });
 
   setSocket(newSocket);
 }
 
-socket?.on("opponent-ready-again",()=>{
-  setMarkBox(renderFrom);
-  setNumState(0);
-  setFinishState(null);
-  setNumArray(0);
-  setWinner(null);
-  setOpponentCount(0);
-  setCount(0);
-  setIsPlayAgain(true);
-  setWantToPlayAgain(false);
-  setCurrentPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
-  setFirstPlayer(firstPlayer === 'player1' ? 'player2' : 'player1');
-  setMatchAgain("");
-});
-socket?.on("oppoWantToPlayAgain",()=>{
-    setMatchAgain("Opponent Wants to Play Again")
-});
 const playAgain = () =>{
   if(!wantToPlayAgain){
     setWantToPlayAgain(true);
@@ -215,6 +254,7 @@ const playAgain = () =>{
     socket?.emit("PlayAgain");
   }
 }
+
   if(!playGame){
     return(
       <div className='container'>
@@ -271,7 +311,7 @@ const playAgain = () =>{
         {(gameWinner && gameWinner !== 'opponentLeft')? "Your Score:"+count+" Opponent's Score:"+opponentcount:""}
         {(gameWinner && gameWinner === 'opponentLeft')? "Opponent Left the Match":""}
         {(!finishState)? 'Mark Numbers 1-25':''}
-        {(finishState && finishState === 'start')? 'Let opponent finish Numbering':''}
+        {(finishState && finishState === 'start')? 'Waiting for opponent to finish numbering...':''}
         {(finishState && finishState === 'continue'&& !gameWinner && playingAs === currentPlayer)? "Your Turn":""}
         {(finishState && finishState === 'continue'&& !gameWinner && playingAs !== currentPlayer)? "Opponent's Turn":""}
       </div>
