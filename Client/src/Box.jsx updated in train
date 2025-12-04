@@ -13,9 +13,6 @@ const Box = ({numArray,setNumArray,playingAs,setFinishState,finishState,setMarkB
                     setNum(numState + 1);
                     setNumState(numState + 1);
                 }
-            /*    if(numState === 24){
-                    setFinishState('start');
-                }*/
             }
         }
        if(finishState === 'continue' && playingAs !== currentPlayer){
@@ -37,11 +34,7 @@ const Box = ({numArray,setNumArray,playingAs,setFinishState,finishState,setMarkB
             setNumArray(num);
         } 
     }
-    useEffect(() => {
-        if(numState == 25){
-            setFinishState('start');
-        }
-    }, [numState]);
+
     useEffect(() => {
         if(finishState === 'gameOver' && clas !== 'cell active'){
             setClas('cell not-allowed');
