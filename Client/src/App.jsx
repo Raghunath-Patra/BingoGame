@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import './App.css'
 import Box from './Box.jsx'
 import { io } from 'socket.io-client' 
@@ -30,12 +30,46 @@ const App = ()=> {
   const [isplayAgain, setIsPlayAgain] = useState(false);
   const [wantToPlayAgain, setWantToPlayAgain] = useState(false);
   const [matchAgain, setMatchAgain] = useState(null);
+  
+  // New state for connection handling
+  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'connected', 'disconnected', 'reconnecting'
+  const [pendingEmits, setPendingEmits] = useState([]);
+  const emitTimeoutRef = useRef(null);
+  const reconnectAttempts = useRef(0);
+
+  // Helper function to emit with retry logic
+  const emitWithRetry = (eventName, data, retries = 3) => {
+    if (!socket || !socket.connected) {
+      // Queue the emit for when connection is restored
+      setPendingEmits(prev => [...prev, { eventName, data, retries }]);
+      return;
+    }
+
+    socket.emit(eventName, data, (acknowledgment) => {
+      // If acknowledgment fails, retry
+      if (!acknowledgment && retries > 0) {
+        setTimeout(() => {
+          emitWithRetry(eventName, data, retries - 1);
+        }, 1000);
+      }
+    });
+  };
+
+  // Process pending emits when connection is restored
+  useEffect(() => {
+    if (connectionStatus === 'connected' && pendingEmits.length > 0) {
+      pendingEmits.forEach(({ eventName, data }) => {
+        socket?.emit(eventName, data);
+      });
+      setPendingEmits([]);
+    }
+  }, [connectionStatus, pendingEmits]);
 
   // Monitor numState and emit when player finishes numbering
   useEffect(() => {
     if(numState === 25 && finishState !== 'start' && finishState !== 'continue'){
       setFinishState('start');
-      socket?.emit("start_to_play"); 
+      emitWithRetry("start_to_play", {}); 
     }
   }, [numState]);
 
@@ -93,18 +127,13 @@ const App = ()=> {
 
 useEffect(() => {
   if(finishState === 'continue'){
-    socket?.emit("CheckWinner",{
-      count: count,
-    });
+    emitWithRetry("CheckWinner", { count: count });
   }
 }, [count]);
 
 useEffect(() => { 
   if(finishState === 'continue' && playingAs !== currentPlayer){
-    
-    socket?.emit("playerMoveFromClient",{
-      num: numArray,
-    });
+    emitWithRetry("playerMoveFromClient", { num: numArray });
   }
 }, [numArray]);
 
@@ -119,6 +148,32 @@ useEffect(() => {
 
   const handleConnect = () => {
     setPlayGame(true);
+    setConnectionStatus('connected');
+    reconnectAttempts.current = 0;
+  };
+
+  const handleDisconnect = () => {
+    setConnectionStatus('disconnected');
+  };
+
+  const handleReconnecting = (attemptNumber) => {
+    setConnectionStatus('reconnecting');
+    reconnectAttempts.current = attemptNumber;
+  };
+
+  const handleReconnect = () => {
+    setConnectionStatus('connected');
+    reconnectAttempts.current = 0;
+    
+    // Re-emit player info if game was in progress
+    if (playerName && !opponentName) {
+      emitWithRetry("request_to_play", { playerName: playerName });
+    }
+  };
+
+  const handleConnectError = (error) => {
+    console.error("Connection error:", error);
+    setConnectionStatus('disconnected');
   };
 
   const handleOpponentNotFound = () => {
@@ -166,8 +221,15 @@ useEffect(() => {
     setMatchAgain("Opponent Wants to Play Again");
   };
 
-  socket.on("WinnerDeclared", handleWinnerDeclared);
+  // Connection events
   socket.on("connect", handleConnect);
+  socket.on("disconnect", handleDisconnect);
+  socket.on("reconnecting", handleReconnecting);
+  socket.on("reconnect", handleReconnect);
+  socket.on("connect_error", handleConnectError);
+
+  // Game events
+  socket.on("WinnerDeclared", handleWinnerDeclared);
   socket.on("OpponentNotFound", handleOpponentNotFound);
   socket.on("OpponentFound", handleOpponentFound);
   socket.on("opponentLeftMatch", handleOpponentLeft);
@@ -176,8 +238,12 @@ useEffect(() => {
   socket.on("oppoWantToPlayAgain", handleOppoWantToPlayAgain);
 
   return () => {
-    socket.off("WinnerDeclared", handleWinnerDeclared);
     socket.off("connect", handleConnect);
+    socket.off("disconnect", handleDisconnect);
+    socket.off("reconnecting", handleReconnecting);
+    socket.off("reconnect", handleReconnect);
+    socket.off("connect_error", handleConnectError);
+    socket.off("WinnerDeclared", handleWinnerDeclared);
     socket.off("OpponentNotFound", handleOpponentNotFound);
     socket.off("OpponentFound", handleOpponentFound);
     socket.off("opponentLeftMatch", handleOpponentLeft);
@@ -185,7 +251,7 @@ useEffect(() => {
     socket.off("opponent-ready-again", handleOpponentReadyAgain);
     socket.off("oppoWantToPlayAgain", handleOppoWantToPlayAgain);
   };
-}, [socket, finishState, playingAs, currentPlayer, firstPlayer]);
+}, [socket, finishState, playingAs, currentPlayer, firstPlayer, playerName, opponentName]);
 
 const takePlayerName = async() =>{
   const result = await Swal.fire({
@@ -209,9 +275,16 @@ async function findPlayer(){
   }
   const userName = result.value;
   setPlayerName(userName);
-  const newSocket = io("https://bingogame-backend.onrender.com",{
-    //const newSocket = io("http://localhost:3000",{
+  
+  const newSocket = io("https://bingogame-backend.onrender.com", {
+    //const newSocket = io("http://localhost:3000", {
     autoConnect: true,
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
+    timeout: 20000,
+    transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
   });
 
   newSocket?.emit("request_to_play", {
@@ -235,9 +308,17 @@ const findNewPlayer = ()=>{
   setWinner(null);
   setOpponentCount(0);
   setCount(0);
-  const newSocket = io("https://bingogame-backend.onrender.com",{
-    //const newSocket = io("http://localhost:3000",{
+  setConnectionStatus('disconnected');
+  
+  const newSocket = io("https://bingogame-backend.onrender.com", {
+    //const newSocket = io("http://localhost:3000", {
     autoConnect: true,
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
+    timeout: 20000,
+    transports: ['websocket', 'polling'],
   });
 
   newSocket?.emit("request_to_play", {
@@ -251,9 +332,23 @@ const playAgain = () =>{
   if(!wantToPlayAgain){
     setWantToPlayAgain(true);
     setMatchAgain("Waiting for Opponent's Response..");
-    socket?.emit("PlayAgain");
+    emitWithRetry("PlayAgain", {});
   }
 }
+
+  // Connection status indicator
+  const getConnectionStatusDisplay = () => {
+    switch(connectionStatus) {
+      case 'connected':
+        return <span className="status-indicator connected">🟢 Connected</span>;
+      case 'reconnecting':
+        return <span className="status-indicator reconnecting">🟡 Reconnecting...</span>;
+      case 'disconnected':
+        return <span className="status-indicator disconnected">🔴 Disconnected</span>;
+      default:
+        return null;
+    }
+  };
 
   if(!playGame){
     return(
@@ -266,6 +361,7 @@ const playAgain = () =>{
   if(playGame && !opponentName){
     return(
       <div className='container'>
+        <div className="connection-status">{getConnectionStatusDisplay()}</div>
         <div>Looking for an opponent...</div>
       </div>
     )
@@ -273,6 +369,7 @@ const playAgain = () =>{
   return (
     
     <div className="container">
+      <div className="connection-status">{getConnectionStatusDisplay()}</div>
       <div>
         {(gameWinner !== 'opponentLeft')?matchAgain : ""}
       </div>
@@ -281,7 +378,7 @@ const playAgain = () =>{
         <b>Bingo</b>
         <div className={`player ${(finishState === 'continue' && playingAs!==currentPlayer) ? 'opponent-turn':''}`}>{opponentName}</div>
       </div>
-      <div className={`game-board ${(gameWinner && (gameWinner === opponentName || gameWinner === 'opponentLeft')) ? 'opponent-won' : ''}`}>
+      <div className={`game-board ${(gameWinner && (gameWinner === opponentName || gameWinner === 'opponentLeft')) ? 'opponent-won' : ''} ${connectionStatus !== 'connected' ? 'board-disabled' : ''}`}>
         {
           renderFrom.map( (arr,rowIndex) =>
             arr.map((e,colIndex) =>{
@@ -314,6 +411,7 @@ const playAgain = () =>{
         {(finishState && finishState === 'start')? 'Waiting for opponent to finish numbering...':''}
         {(finishState && finishState === 'continue'&& !gameWinner && playingAs === currentPlayer)? "Your Turn":""}
         {(finishState && finishState === 'continue'&& !gameWinner && playingAs !== currentPlayer)? "Opponent's Turn":""}
+        {connectionStatus === 'reconnecting' ? <div className="warning-text">⚠️ Connection unstable, reconnecting...</div> : ''}
       </div>
       <div className={`playAgain ${(gameWinner && gameWinner!=='opponentLeft') ? 'visible': ''}`}>
           <button onClick={playAgain}>Play Again</button>
